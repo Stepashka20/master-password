@@ -7,7 +7,6 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"encoding/hex"
-	"fmt"
 	"github.com/AllenDang/giu"
 	"golang.org/x/crypto/scrypt"
 	"image"
@@ -101,7 +100,6 @@ func generateUniqueKey() string {
 	salt := []byte(site + string(rune(len(username))) + username + hex.EncodeToString(seed.Sum(nil)))
 	dk, _ := scrypt.Key([]byte(masterPassword), salt, 32768, 8, 2, 64)
 	final := base64.StdEncoding.EncodeToString(dk)
-	fmt.Println(final)
 	return final
 }
 
