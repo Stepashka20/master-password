@@ -2,8 +2,14 @@ package main
 
 import (
 	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
 	_ "embed"
+	"encoding/base64"
+	"encoding/hex"
+	"fmt"
 	"github.com/AllenDang/giu"
+	"golang.org/x/crypto/scrypt"
 	"image"
 	"log"
 	"strconv"
@@ -14,16 +20,116 @@ var (
 	masterPassword    string
 	site              string
 	login             bool   = false
-	encVariants              = []string{"Maximum Security", "Long", "Medium", "Short", "Basic", "PIN"}
+	encVariants              = []string{"Maximum", "Long", "Medium", "Basic", "Short", "PIN", "Name", "Phrase"}
 	encSelected       int32  = 0
 	passNum           int32  = 1
-	generatedPassword string = "TestPassword#234"
+	generatedPassword string = ""
+	auto              bool   = false
 )
+var characters = map[byte]string{
+	'V': "AEIOU",
+	'C': "BCDFGHJKLMNPQRSTVWXYZ",
+	'v': "aeiou",
+	'c': "bcdfghjklmnpqrstvwxyz",
+	'A': "AEIOUBCDFGHJKLMNPQRSTVWXYZ",
+	'a': "AEIOUaeiouBCDFGHJKLMNPQRSTVWXYZbcdfghjklmnpqrstvwxyz",
+	'n': "0123456789",
+	'o': "@&%?,=[]_:-+*$#!'^~;()/.",
+	'x': "AEIOUaeiouBCDFGHJKLMNPQRSTVWXYZbcdfghjklmnpqrstvwxyz0123456789!@#$%^&*()",
+	' ': " ",
+}
+
+var templates = map[string][]string{
+	"templateMaximum": {
+		"anoxxxxxxxxxxxxxxxxx",
+		"axxxxxxxxxxxxxxxxxno",
+	},
+	"templateLong": {
+		"CvcvnoCvcvCvcv",
+		"CvcvCvcvnoCvcv",
+		"CvcvCvcvCvcvno",
+		"CvccnoCvcvCvcv",
+		"CvccCvcvnoCvcv",
+		"CvccCvcvCvcvno",
+		"CvcvnoCvccCvcv",
+		"CvcvCvccnoCvcv",
+		"CvcvCvccCvcvno",
+		"CvcvnoCvcvCvcc",
+		"CvcvCvcvnoCvcc",
+		"CvcvCvcvCvccno",
+		"CvccnoCvccCvcv",
+		"CvccCvccnoCvcv",
+		"CvccCvccCvcvno",
+		"CvcvnoCvccCvcc",
+		"CvcvCvccnoCvcc",
+		"CvcvCvccCvccno",
+		"CvccnoCvcvCvcc",
+		"CvccCvcvnoCvcc",
+		"CvccCvcvCvccno",
+	},
+	"templateMedium": {
+		"CvcnoCvc",
+		"CvcCvcno",
+	},
+	"templateShort": {
+		"Cvcn",
+	},
+	"templateBasic": {
+		"aaanaaan",
+		"aannaaan",
+		"aaannaaa",
+	},
+	"templatePIN": {
+		"nnnn",
+	},
+	"templateName": {
+		"cvccvcvcv",
+	},
+	"templatePhrase": {
+		"cvcc cvc cvccvcv cvc",
+		"cvc cvccvcvcv cvcv",
+		"cv cvccv cvc cvcvccv",
+	},
+}
 
 //go:embed key.png
 var iconData []byte
 var icons []image.Image
 
+func generateUniqueKey() string {
+	seed := hmac.New(sha256.New, []byte(masterPassword+strconv.Itoa(len(site))+site+strconv.Itoa(int(passNum))))
+	salt := []byte(site + string(rune(len(username))) + username + hex.EncodeToString(seed.Sum(nil)))
+	dk, _ := scrypt.Key([]byte(masterPassword), salt, 32768, 8, 2, 64)
+	final := base64.StdEncoding.EncodeToString(dk)
+	fmt.Println(final)
+	return final
+}
+
+func generatePassword() {
+	originalString := generateUniqueKey()
+	result := ""
+	lettersCode := []int{}
+
+	for _, r := range originalString {
+		lettersCode = append(lettersCode, int(r))
+	}
+	templateType := "template" + encVariants[encSelected]
+	resultTemplate := templates[templateType][lettersCode[0]%len(templates[templateType])]
+	i := 0
+	for _, characterClass := range resultTemplate {
+		characters := characters[byte(characterClass)]
+		result += string(characters[lettersCode[i+1]%len(characters)])
+		i++
+	}
+	generatedPassword = result
+
+}
+
+func autoGeneratePassword() {
+	if auto {
+		generatePassword()
+	}
+}
 func loop() {
 	giu.SingleWindow().Layout(
 		giu.Custom(func() {
@@ -58,32 +164,33 @@ func loop() {
 				giu.Separator(),
 				giu.Row(
 					giu.Label("Site name:"),
-					giu.InputText(&site).Size(-1),
+					giu.InputText(&site).Size(-1).OnChange(autoGeneratePassword),
 				),
 				giu.Style().SetDisabled(site == "").To(
 					giu.Row(
-						giu.Combo("##splitter", encVariants[encSelected], encVariants, &encSelected).Size(-1),
+						giu.Combo("##splitter", encVariants[encSelected], encVariants, &encSelected).Size(-1).OnChange(autoGeneratePassword),
 						giu.Tooltip("Type of password to generate"),
 
-						giu.InputInt(&passNum).Size(-1).Flags(giu.InputTextFlagsCharsDecimal),
+						giu.InputInt(&passNum).Size(-1).Flags(giu.InputTextFlagsCharsDecimal).OnChange(autoGeneratePassword),
 						giu.Tooltip("Number of password"),
 					),
 
 					giu.Row(
-						giu.Button("Generate").Size(-1, 30).OnClick(func() {
-							// TODO
+						giu.Checkbox("", &auto),
+						giu.Tooltip("Auto generate password"),
+						giu.Button("Generate").Size(-1, 0).OnClick(generatePassword),
+					),
+					giu.Style().SetDisabled(generatedPassword == "").To(
+						giu.Dummy(0, 10),
+						giu.Align(giu.AlignCenter).To(
+							giu.Label(generatedPassword),
+						),
+						giu.Dummy(0, 10),
+						giu.Button("copy").Size(-1, 0).OnClick(func() {
+							giu.Context.GetPlatform().SetClipboard(generatedPassword)
 
 						}),
 					),
-					giu.Dummy(0, 10),
-					giu.Align(giu.AlignCenter).To(
-						giu.Label(generatedPassword),
-					),
-					giu.Dummy(0, 10),
-					giu.Button("copy").Size(-1, 0).OnClick(func() {
-						// TODO
-
-					}),
 				),
 			}.Build()
 		}),

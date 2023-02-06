@@ -2,7 +2,10 @@ module testgui
 
 go 1.19
 
-require github.com/AllenDang/giu v0.6.3-0.20221213134548-da051513855e
+require (
+	github.com/AllenDang/giu v0.6.3-0.20221213134548-da051513855e
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+)
 
 require (
 	github.com/AllenDang/go-findfont v0.0.0-20200702051237-9f180485aeb8 // indirect
