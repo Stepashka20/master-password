@@ -1,7 +1,7 @@
 # 🔑 Master Password
 The Master Password generates unique passwords in a consistent way, unlike traditional password managers. Passwords are not saved but generated every time based on information entered by the user, such as their name, master password, and a unique identifier for the service the password is used for (URL). 
 
-![Golang](https://img.shields.io/badge/language-Go-blue) 
+![Golang](https://img.shields.io/badge/language-Go-blue) [![Hits](https://hits.seeyoufarm.com/api/count/incr/badge.svg?url=https%3A%2F%2Fgithub.com%2FStepashka20%2Fmaster-password&count_bg=%2379C83D&title_bg=%23555555&icon=&icon_color=%23E7E7E7&title=hits&edge_flat=false)](https://hits.seeyoufarm.com)
 
 ## ⁉ Introduction
 
